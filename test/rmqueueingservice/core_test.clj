@@ -8,7 +8,9 @@
             [langohr.basic :as lb]
             [langohr.consumers :as lc])
   (:import java.util.HashMap
-           injectthedriver.interfaces.QueueService$Queue))
+           (injectthedriver.interfaces QueueService$Queue
+                                       QueueService$Callback
+                                       Stopable)))
 
 
 ;; # Initialization
@@ -65,3 +67,19 @@
     (lb/publish ..chan.. ..name.. msg {:content-type "application/octet-stream"}) => irrelevant)))
 
 
+;; # Registerring to Tasks
+
+;; The `.register` method of a queue takes a callback object
+;; (implementation of
+;; `injectthedriver.interfaces.QueueService.Callback`), and starts a
+;; thread that would call it for tasks coming from the
+;; queue. Internally, it starts a consumer.
+(fact
+ (let [driver (MockObj. {:chan ..chan..})
+       queue (qs/-defineQueue driver ..name..)
+       cb (reify QueueService$Callback
+            (handleTask [this data]))]
+   (.register queue cb)) => (partial instance? Stopable)
+ (provided
+  (lq/declare ..chan.. ..name.. irrelevant) => irrelevant
+  (lc/subscribe ..chan.. ..name.. irrelevant) => ..constag..))

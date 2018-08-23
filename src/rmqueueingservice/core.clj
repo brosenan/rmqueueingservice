@@ -5,7 +5,8 @@
             [langohr.queue :as lq]
             [langohr.basic :as lb]
             [langohr.consumers :as lc])
-  (:import injectthedriver.interfaces.QueueService$Queue))
+  (:import (injectthedriver.interfaces QueueService$Queue
+                                       Stopable)))
 
 (defn -init [props]
   (let [props (into {} (for [[k v] props]
@@ -16,7 +17,13 @@
          :chan chan}]))
 
 (defn -defineQueue [this name]
-  (lq/declare (-> this .state :chan) name {:exclusive false :auto-delete false})
-  (reify QueueService$Queue
-    (enqueue [this' task]
-      (lb/publish (-> this .state :chan) name task {:content-type "application/octet-stream"}))))
+  (let [chan (-> this .state :chan)]
+    (lq/declare chan name {:exclusive false :auto-delete false})
+    (reify QueueService$Queue
+      (enqueue [this' task]
+        (lb/publish chan name task {:content-type "application/octet-stream"}))
+      (register [this' cb]
+        (lc/subscribe chan name (fn []))
+        (reify Stopable)))))
+
+
