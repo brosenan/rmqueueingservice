@@ -6,7 +6,8 @@
             [langohr.basic :as lb]
             [langohr.consumers :as lc])
   (:import (injectthedriver.interfaces QueueService$Queue
-                                       Stopable)))
+                                       Stopable
+                                       RecoverableError)))
 
 (defn -init [props]
   (let [props (into {} (for [[k v] props]
@@ -16,6 +17,19 @@
     [[] {:conn conn
          :chan chan}]))
 
+(defn callback-wrapper [cb ack nack log]
+  (fn [chan {:keys [delivery-tag]} task]
+    (try
+      (.handleTask cb task)
+      (ack chan delivery-tag)
+      (catch RecoverableError e
+        (log e)
+        (nack chan delivery-tag))
+      (catch Exception e
+        (log e)
+        (ack chan delivery-tag)))
+    nil))
+
 (defn -defineQueue [this name]
   (let [chan (-> this .state :chan)]
     (lq/declare chan name {:exclusive false :auto-delete false})
@@ -23,7 +37,9 @@
       (enqueue [this' task]
         (lb/publish chan name task {:content-type "application/octet-stream"}))
       (register [this' cb]
-        (lc/subscribe chan name (fn []))
-        (reify Stopable)))))
+        (let [constag (lc/subscribe chan name (callback-wrapper cb lb/ack lb/nack prn))]
+          (reify Stopable
+            (stop [this']
+              (lb/cancel chan constag))))))))
 
 

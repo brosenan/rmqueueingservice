@@ -10,7 +10,8 @@
   (:import java.util.HashMap
            (injectthedriver.interfaces QueueService$Queue
                                        QueueService$Callback
-                                       Stopable)))
+                                       Stopable
+                                       RecoverableError)))
 
 
 ;; # Initialization
@@ -83,3 +84,83 @@
  (provided
   (lq/declare ..chan.. ..name.. irrelevant) => irrelevant
   (lc/subscribe ..chan.. ..name.. irrelevant) => ..constag..))
+
+;; Calling the `.stop` method of the returned `Stoppable` causes the
+;; consumer to be canceled.
+(fact
+ (let [driver (MockObj. {:chan ..chan..})
+       queue (qs/-defineQueue driver ..name..)
+       cb (reify QueueService$Callback
+            (handleTask [this data]))
+       stoppable (.register queue cb)]
+   (.stop stoppable)) => nil
+ (provided
+  (lq/declare ..chan.. ..name.. irrelevant) => irrelevant
+  (lc/subscribe ..chan.. ..name.. irrelevant) => ..constag..
+  (lb/cancel ..chan.. ..constag..) => irrelevant))
+
+;; ## Callback Wrapper
+
+;; The `callback-wrapper` function takes a `QueueService$Callback`
+;; object, an ack function (intended to be `lb/ack`), a nack function
+;; (intended to be `lb/nack`) and a log function to log potential
+;; errors. It returns a callback function applicable to langohr. When
+;; this function is called, the callback's `.handleTask` method is
+;; called with the same data.
+(fact
+ (let [calls (atom [])
+       acks (atom [])
+       nacks (atom [])
+       logs (atom [])
+       cb (reify QueueService$Callback
+            (handleTask [this task]
+              (swap! calls conj task)))
+       myack #(swap! acks conj [%1 %2])
+       mynack #(swap! nacks conj [%1 %2])
+       mylog #(swap! logs conj %)
+       wrapped (qs/callback-wrapper cb myack mynack mylog)
+       bytes (.getBytes "foobar")]
+   (wrapped ..chan.. {:delivery-tag ..deltag..} bytes) => nil
+   @calls => [bytes]
+   ;; After completion, the message is acknowledged.
+   @acks => [[..chan.. ..deltag..]]
+   @nacks => []
+   @logs => []))
+
+;; At the event that the callback throws a `RecoverableError`, the
+;; message is `nack`ed instead of beind acknowledged.
+(fact
+ (let [acks (atom [])
+       nacks (atom [])
+       logs (atom [])
+       cb (reify QueueService$Callback
+            (handleTask [this task]
+              (throw (RecoverableError. "boo"))))
+       myack #(swap! acks conj [%1 %2])
+       mynack #(swap! nacks conj [%1 %2])
+       mylog #(swap! logs conj %)
+       wrapped (qs/callback-wrapper cb myack mynack mylog)
+       bytes (.getBytes "foobar")]
+   (wrapped ..chan.. {:delivery-tag ..deltag..} bytes) => nil
+   @acks => []
+   @nacks => [[..chan.. ..deltag..]]
+   (first @logs) => (partial instance? RecoverableError)))
+
+;; Any other exception is considered unrecoverable, and the message is
+;; acknowledged, to make sure the crash does not repeat itself.
+(fact
+ (let [acks (atom [])
+       nacks (atom [])
+       logs (atom [])
+       cb (reify QueueService$Callback
+            (handleTask [this task]
+              (throw (Exception. "boo"))))
+       myack #(swap! acks conj [%1 %2])
+       mynack #(swap! nacks conj [%1 %2])
+       mylog #(swap! logs conj %)
+       wrapped (qs/callback-wrapper cb myack mynack mylog)
+       bytes (.getBytes "foobar")]
+   (wrapped ..chan.. {:delivery-tag ..deltag..} bytes) => nil
+   @acks => [[..chan.. ..deltag..]]
+   @nacks => []
+   (first @logs) => (partial instance? Exception)))
