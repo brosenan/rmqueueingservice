@@ -7,6 +7,7 @@
                  [brosenan/injectthedriver "0.0.4-SNAPSHOT"]
                  [com.novemberain/langohr "5.0.0"]]
   :profiles {:dev {:dependencies [[midje "1.9.2"]]
-                   :plugins [[lein-midje "3.2.1"]]}}
+                   :plugins [[lein-midje "3.2.1"]
+                             [brightnorth/uberjar-deploy "1.0.1"]]}}
   :aot :all
   :deploy-repositories [["releases" :clojars]])
