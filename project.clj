@@ -10,6 +10,6 @@
                    :plugins [[lein-midje "3.2.1"]
                              [brightnorth/uberjar-deploy "1.0.1"]]}}
   :aliases {"jar"    "uberjar"
-            "deploy" "uberjar-deploy"}
+            "deploy" ["do" "uberjar" "uberjar-deploy"]}
   :aot :all
   :deploy-repositories [["releases" :clojars]])
