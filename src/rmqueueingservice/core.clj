@@ -11,7 +11,7 @@
                                        RecoverableError))
   (:gen-class
    :name rmqueueingservice.RMQuingService
-   :implements [QueueService]
+   :implements [injectthedriver.interfaces.QueueService]
    :state state
    :init init
    :constructors {[java.util.Map] []}))
