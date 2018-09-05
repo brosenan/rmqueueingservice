@@ -5,9 +5,16 @@
             [langohr.queue :as lq]
             [langohr.basic :as lb]
             [langohr.consumers :as lc])
-  (:import (injectthedriver.interfaces QueueService$Queue
+  (:import (injectthedriver.interfaces QueueService
+                                       QueueService$Queue
                                        Stopable
-                                       RecoverableError)))
+                                       RecoverableError))
+  (:gen-class
+   :name rmqueueingservice.RMQuingService
+   :implements [QueueService]
+   :state state
+   :init init
+   :constructors {[java.util.Map] []}))
 
 (defn -init [props]
   (let [props (into {} (for [[k v] props]
