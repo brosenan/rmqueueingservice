@@ -1,4 +1,4 @@
-(defproject brosenan/rmqueueingservice "0.1.4-SNAPSHOT"
+(defproject brosenan/rmqueueingservice "0.1.4"
   :description "FIXME: write description"
   :url "http://example.com/FIXME"
   :license {:name "Eclipse Public License"
