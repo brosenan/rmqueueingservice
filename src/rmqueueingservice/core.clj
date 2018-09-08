@@ -10,7 +10,7 @@
                                        Stopable
                                        RecoverableError))
   (:gen-class
-   :name rmqueueingservice.RMQuingService
+   :name rmqueueingservice.RMQueuingService
    :implements [injectthedriver.interfaces.QueueService]
    :state state
    :init init
