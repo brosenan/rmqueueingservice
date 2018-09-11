@@ -79,7 +79,7 @@
                           (def message (atom ""))
                           (let [conn (rmq/connect rabbitmq)
                                 ch (lch/open conn)
-                                qname "foo"
+                                qname "bar"
                                 qs (DriverFactory/createDriverFor QueueService)
                                 q (.defineQueue qs qname)
                                 subs (.register q (reify QueueService$Callback
@@ -91,7 +91,22 @@
                             @message => "Hola!"
                             (.stop subs)
                             (rmq/close ch)
-                            (rmq/close conn)))])
+                            (rmq/close conn)))
+                         (fact
+                          "Driver publishes and receives"
+                          (def message (atom ""))
+                          (let [qname "baz"
+                                qs1 (DriverFactory/createDriverFor QueueService)
+                                q1 (.defineQueue qs1 qname)
+                                subs (.register q1 (reify QueueService$Callback
+                                                     (handleTask [this data]
+                                                       (reset! message (String. data)))))
+                                qs2 (DriverFactory/createDriverFor QueueService)
+                                q2 (.defineQueue qs2 qname)]
+                            (.enqueue q2 (.getBytes "Hi!"))
+                            (Thread/sleep 1000)
+                            @message => "Hi!"
+                            (.stop subs)))])
                       (lku/wait-for-service-port event-broker :amqp)
                       (lk/update-container :test lku/inject-driver QueueService event-broker))))))
 
