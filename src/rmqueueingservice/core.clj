@@ -42,7 +42,7 @@
     (lq/declare chan name {:exclusive false :auto-delete false})
     (reify QueueService$Queue
       (enqueue [this' task]
-        (lb/publish chan name task {:content-type "application/octet-stream"}))
+        (lb/publish chan "" name task {:content-type "application/octet-stream"}))
       (register [this' cb]
         (let [constag (lc/subscribe chan name (callback-wrapper cb lb/ack lb/nack prn))]
           (reify Stopable

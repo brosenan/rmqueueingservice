@@ -17,7 +17,8 @@
                       (lku/add-midje-container
                        :test
                        '[[org.clojure/clojure "1.9.0"]
-                         [com.novemberain/langohr "5.0.0"]]
+                         [com.novemberain/langohr "5.0.0"]
+                         [brosenan/injectthedriver "0.0.4-SNAPSHOT"]]
                        {:rabbitmq {:host (:hostname event-broker)
                                    :port (-> event-broker :ports :amqp)
                                    :username "guest"
@@ -31,7 +32,8 @@
                                      [langohr.queue :as lq]
                                      [langohr.basic :as lb]
                                      [langohr.consumers :as lc])
-                           (:import injectthedriver.DriverFactory))
+                           (:import [injectthedriver DriverFactory]
+                                    [injectthedriver.interfaces QueueService]))
                          (fact
                           "RabbitMQ sanity using Langohr"
                           ;; Roughly based on Langohr's "Hello World" example
@@ -61,9 +63,11 @@
                                 qname "foo"
                                 qs (DriverFactory/createDriverFor QueueService)
                                 q (.defineQueue qs qname)]
-                            (lq/declare ch qname {:exclusive false :auto-delete true})
+                            ;; We trust that the queue is being
+                            ;; declared by the driver, so we do not
+                            ;; declare it here.
                             (lc/subscribe ch qname message-handler {:auto-ack true})
-                            (.enqueque (.getBytes "Hello, World"))
+                            (.enqueue q (.getBytes "Hello, World"))
                             (Thread/sleep 1000)
                             ;; Check that the message has been delivered
                             @message => "Hello, World"

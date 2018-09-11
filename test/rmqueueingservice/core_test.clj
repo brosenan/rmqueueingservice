@@ -68,7 +68,8 @@
      (.enqueue queue msg)) => nil
    (provided
     (lq/declare ..chan.. ..name.. irrelevant) => irrelevant
-    (lb/publish ..chan.. ..name.. msg {:content-type "application/octet-stream"}) => irrelevant)))
+    ;; Publish on the default exchange, with the queue name as a routing key
+    (lb/publish ..chan.. "" ..name.. msg {:content-type "application/octet-stream"}) => irrelevant)))
 
 
 ;; # Registerring to Tasks
