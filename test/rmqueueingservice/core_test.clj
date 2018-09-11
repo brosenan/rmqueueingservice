@@ -22,11 +22,14 @@
 ;; state of the object. The preceding empty vector in the return value
 ;; is the list of parameters for the base-class constructor.
 (fact
- (let [props (HashMap.)]
-   (.put props "host" "foo")
-   (.put props "port" 1234)
+ (let [props (HashMap.)
+       ports (HashMap.)]
+   (.put props "hostname" "foo")
+   (.put props "ports" ports)
+   (.put ports "amqp" 1234)
+   (.put ports "other" 4321)
    (qs/-init props) => [[] {:conn ..conn..
-                           :chan ..chan..}]
+                            :chan ..chan..}]
    (provided
     (rmq/connect {:host "foo"
                   :port 1234}) => ..conn..

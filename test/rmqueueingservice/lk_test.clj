@@ -3,12 +3,13 @@
             [lambdakube.testing :as lkt]
             [lambdakube.core :as lk]
             [lambdakube.util :as lku]
-            [rmqueueingservice.lk :as rmqlk]))
+            [rmqueueingservice.lk :as rmqlk])
+  (:import injectthedriver.interfaces.QueueService))
 
 (defn test-module [$]
   (-> $
       ;; An acceptance test for RabbitMQ.
-      (lkt/test :acceptance
+      (lkt/test :with-single-rabbitmq
                 {:use-single-rabbitmq true}
                 [:event-broker]
                 (fn [event-broker]
@@ -29,29 +30,47 @@
                                      [langohr.exchange :as le]
                                      [langohr.queue :as lq]
                                      [langohr.basic :as lb]
-                                     [langohr.consumers :as lc]))
-                         ;; Roughly based on Langohr's "Hello World" example
-                         (def message (atom ""))
-                         (defn message-handler [ch meta payload]
-                           (println "Message received: " (String. payload))
-                           (reset! message (String. payload)))
+                                     [langohr.consumers :as lc])
+                           (:import injectthedriver.DriverFactory))
                          (fact
-                          (println rabbitmq)
+                          "RabbitMQ sanity using Langohr"
+                          ;; Roughly based on Langohr's "Hello World" example
+                          (def message (atom ""))
+                          (defn message-handler [ch meta payload]
+                            (println "Message received: " (String. payload))
+                            (reset! message (String. payload)))
                           (let [conn (rmq/connect rabbitmq)
                                 ch (lch/open conn)
                                 qname "langohr.examples.hello-world"]
                             (lq/declare ch qname {:exclusive false :auto-delete true})
                             (lc/subscribe ch qname message-handler {:auto-ack true})
-                            (println "Subscribed...")
-                            (Thread/sleep 2000)
                             (lb/publish ch "" qname "Hello!" {:content-type "text/plain" :type "greetings.hi"})
-                            (println "Message published!")
-                            (Thread/sleep 10000)
+                            (Thread/sleep 1000)
                             ;; Check that the message has been delivered
                             @message => "Hello!"
                             (rmq/close ch)
+                            (rmq/close conn)))
+                         (fact
+                          "Driver publishes, Langohr receives"
+                          (def message (atom ""))
+                          (defn message-handler [ch meta payload]
+                            (println "Message received: " (String. payload))
+                            (reset! message (String. payload)))
+                          (let [conn (rmq/connect rabbitmq)
+                                ch (lch/open conn)
+                                qname "foo"
+                                qs (DriverFactory/createDriverFor QueueService)
+                                q (.defineQueue qs qname)]
+                            (lq/declare ch qname {:exclusive false :auto-delete true})
+                            (lc/subscribe ch qname message-handler {:auto-ack true})
+                            (.enqueque (.getBytes "Hello, World"))
+                            (Thread/sleep 1000)
+                            ;; Check that the message has been delivered
+                            @message => "Hello, World"
+                            (rmq/close ch)
                             (rmq/close conn)))])
-                      (lku/wait-for-service-port event-broker :amqp))))))
+                      (lku/wait-for-service-port event-broker :amqp)
+                      (lk/update-container :test lku/inject-driver QueueService event-broker))))))
 
 (fact :kube
  (-> (lk/injector)

@@ -17,8 +17,8 @@
    :constructors {[java.util.Map] []}))
 
 (defn -init [props]
-  (let [props (into {} (for [[k v] props]
-                         [(keyword k) v]))
+  (let [props {:host (-> props (.get "hostname"))
+               :port (-> props (.get "ports") (.get "amqp"))}
         conn (rmq/connect props)
         chan (lch/open conn)]
     [[] {:conn conn
