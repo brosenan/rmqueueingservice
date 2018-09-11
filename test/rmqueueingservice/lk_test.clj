@@ -32,8 +32,9 @@
                                      [langohr.queue :as lq]
                                      [langohr.basic :as lb]
                                      [langohr.consumers :as lc])
-                           (:import [injectthedriver DriverFactory]
-                                    [injectthedriver.interfaces QueueService]))
+                           (:import (injectthedriver DriverFactory)
+                                    (injectthedriver.interfaces QueueService
+                                                                QueueService$Callback)))
                          (fact
                           "RabbitMQ sanity using Langohr"
                           ;; Roughly based on Langohr's "Hello World" example
@@ -71,6 +72,24 @@
                             (Thread/sleep 1000)
                             ;; Check that the message has been delivered
                             @message => "Hello, World"
+                            (rmq/close ch)
+                            (rmq/close conn)))
+                         (fact
+                          "Langohr publishes, Driver receives"
+                          (def message (atom ""))
+                          (let [conn (rmq/connect rabbitmq)
+                                ch (lch/open conn)
+                                qname "foo"
+                                qs (DriverFactory/createDriverFor QueueService)
+                                q (.defineQueue qs qname)
+                                subs (.register q (reify QueueService$Callback
+                                                    (handleTask [this data]
+                                                      (reset! message (String. data)))))]
+                            (lb/publish ch "" qname "Hola!" {:content-type "text/plain" :type "greetings.hi"})
+                            (Thread/sleep 1000)
+                            ;; Check that the message has been delivered
+                            @message => "Hola!"
+                            (.stop subs)
                             (rmq/close ch)
                             (rmq/close conn)))])
                       (lku/wait-for-service-port event-broker :amqp)

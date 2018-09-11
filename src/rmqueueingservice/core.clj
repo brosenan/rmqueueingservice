@@ -16,13 +16,15 @@
    :init init
    :constructors {[java.util.Map] []}))
 
-(defn -init [props]
+(defn init [props]
   (let [props {:host (-> props (.get "hostname"))
                :port (-> props (.get "ports") (.get "amqp"))}
         conn (rmq/connect props)
         chan (lch/open conn)]
     [[] {:conn conn
          :chan chan}]))
+
+(def -init init)
 
 (defn callback-wrapper [cb ack nack log]
   (fn [chan {:keys [delivery-tag]} task]
@@ -37,7 +39,7 @@
         (ack chan delivery-tag)))
     nil))
 
-(defn -defineQueue [this name]
+(defn defineQueue [this name]
   (let [chan (-> this .state :chan)]
     (lq/declare chan name {:exclusive false :auto-delete false})
     (reify QueueService$Queue
@@ -50,3 +52,4 @@
               (lb/cancel chan constag))))))))
 
 
+(def -defineQueue defineQueue)

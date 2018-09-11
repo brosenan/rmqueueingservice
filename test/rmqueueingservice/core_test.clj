@@ -16,7 +16,7 @@
 
 ;; # Initialization
 
-;; The `-init` function (mapped to the constructor), takes a Java
+;; The `init` function (mapped to the constructor), takes a Java
 ;; `Map` object containing properties for the queue service, and
 ;; initializes a connection and a channel. The two are returned as the
 ;; state of the object. The preceding empty vector in the return value
@@ -28,8 +28,8 @@
    (.put props "ports" ports)
    (.put ports "amqp" 1234)
    (.put ports "other" 4321)
-   (qs/-init props) => [[] {:conn ..conn..
-                            :chan ..chan..}]
+   (qs/init props) => [[] {:conn ..conn..
+                           :chan ..chan..}]
    (provided
     (rmq/connect {:host "foo"
                   :port 1234}) => ..conn..
@@ -42,15 +42,15 @@
 
 ;; # Defining a Queue
 
-;; The `-defineQueue` method takes a name and returns a queue
+;; The `defineQueue` method takes a name and returns a queue
 ;; object. Internally, it defines a queue with the same name. It is
 ;; idempotent because the underlying AMQP operation is.
 
-;; `-defineQueue` returns an instance of
+;; `defineQueue` returns an instance of
 ;; `injectthedriver.interfaces.QueueService.Queue`.
 (fact
  (let [driver (MockObj. {:chan ..chan..})]
-   (qs/-defineQueue driver ..name..) => (partial instance? QueueService$Queue)
+   (qs/defineQueue driver ..name..) => (partial instance? QueueService$Queue)
    (provided
     (lq/declare ..chan.. ..name.. {:exclusive false :auto-delete false}) => nil)))
 
@@ -64,7 +64,7 @@
 (fact
  (let [msg (.getBytes "foobar" "utf8")]
    (let [driver (MockObj. {:chan ..chan..})
-         queue (qs/-defineQueue driver ..name..)]
+         queue (qs/defineQueue driver ..name..)]
      (.enqueue queue msg)) => nil
    (provided
     (lq/declare ..chan.. ..name.. irrelevant) => irrelevant
@@ -81,7 +81,7 @@
 ;; queue. Internally, it starts a consumer.
 (fact
  (let [driver (MockObj. {:chan ..chan..})
-       queue (qs/-defineQueue driver ..name..)
+       queue (qs/defineQueue driver ..name..)
        cb (reify QueueService$Callback
             (handleTask [this data]))]
    (.register queue cb)) => (partial instance? Stopable)
@@ -93,7 +93,7 @@
 ;; consumer to be canceled.
 (fact
  (let [driver (MockObj. {:chan ..chan..})
-       queue (qs/-defineQueue driver ..name..)
+       queue (qs/defineQueue driver ..name..)
        cb (reify QueueService$Callback
             (handleTask [this data]))
        stoppable (.register queue cb)]
